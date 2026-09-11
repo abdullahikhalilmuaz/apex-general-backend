@@ -38,7 +38,31 @@ router.get("/all", auth, async (req, res) => {
   }
 });
 
-// Create lesson note (Teacher only) - auto-assigns class
+// Get lesson notes by class (Headmaster only)
+router.get("/class/:class", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "headmaster") {
+      return res
+        .status(403)
+        .json({ error: "Only headmasters can view all notes" });
+    }
+
+    const notes = await LessonNote.find({
+      class: req.params.class,
+    })
+      .populate({
+        path: "teacherId",
+        select: "name classAssigned",
+      })
+      .sort({ date: -1 });
+
+    res.json(notes);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create lesson note (Teacher only) - auto-assigns class from teacher profile
 router.post("/", auth, async (req, res) => {
   try {
     if (req.user.role !== "teacher") {
@@ -69,7 +93,7 @@ router.post("/", auth, async (req, res) => {
 
     const note = new LessonNote({
       teacherId: req.user.id,
-      class: teacher.classAssigned, // ← auto-assigned from teacher profile
+      class: teacher.classAssigned,
       subject,
       topic,
       objectives: objectives || [],
@@ -95,7 +119,7 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
-// Update lesson note (Teacher owns it only)
+// Update lesson note
 router.put("/:id", auth, async (req, res) => {
   try {
     const teacher = await Teacher.findById(req.user.id);
@@ -117,7 +141,7 @@ router.put("/:id", auth, async (req, res) => {
     const note = await LessonNote.findOneAndUpdate(
       { _id: req.params.id, teacherId: req.user.id },
       {
-        class: teacher.classAssigned, // ← always teacher's class
+        class: teacher.classAssigned,
         subject,
         topic,
         objectives: objectives || [],
@@ -140,11 +164,12 @@ router.put("/:id", auth, async (req, res) => {
 
     res.json(note);
   } catch (error) {
+    console.error("Error updating lesson note:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Delete lesson note (Teacher owns it only)
+// Delete lesson note
 router.delete("/:id", auth, async (req, res) => {
   try {
     const note = await LessonNote.findOneAndDelete({
@@ -158,6 +183,7 @@ router.delete("/:id", auth, async (req, res) => {
 
     res.json({ message: "Lesson note deleted successfully" });
   } catch (error) {
+    console.error("Error deleting lesson note:", error);
     res.status(500).json({ error: error.message });
   }
 });
