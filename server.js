@@ -37,6 +37,7 @@ const parentMessageRoutes = require("./routes/parentMessageRoutes");
 const teacherMessageRoutes = require("./routes/teacherMessageRoutes");
 const headmasterMessageRoutes = require("./routes/headmasterMessageRoutes");
 const announcementRoutes = require("./routes/announcementRoutes");
+const lessonNoteRoutes = require("./routes/lessonNoteRoutes");
 
 app.use("/api/schemes", schemeRoutes);
 app.use("/api/auth", authRoutes);
@@ -51,6 +52,7 @@ app.use("/api/parent/messages", parentMessageRoutes);
 app.use("/api/teacher/messages", teacherMessageRoutes);
 app.use("/api/headmaster/messages", headmasterMessageRoutes);
 app.use("/api/announcements", announcementRoutes);
+app.use("/api/lesson-notes", lessonNoteRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "API running" });
