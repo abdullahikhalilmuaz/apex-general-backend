@@ -6,8 +6,15 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 exports.uploadScheme = async (req, res) => {
   try {
+    console.log("=== UPLOAD DEBUG ===");
+    console.log("req.body:", req.body);
+    console.log("req.file:", req.file ? "yes" : "no");
+    console.log("req.user:", req.user);
+
     if (req.user.role !== "headmaster") {
-      return res.status(403).json({ error: "Only headmasters can upload schemes" });
+      return res
+        .status(403)
+        .json({ error: "Only headmasters can upload schemes" });
     }
 
     if (!req.file) {
@@ -16,7 +23,9 @@ exports.uploadScheme = async (req, res) => {
 
     const { class: className, subject, term, session } = req.body;
     if (!className || !subject || !term || !session) {
-      return res.status(400).json({ error: "class, subject, term, session required" });
+      return res
+        .status(400)
+        .json({ error: "class, subject, term, session required" });
     }
 
     // Extract text from PDF
@@ -27,8 +36,11 @@ exports.uploadScheme = async (req, res) => {
       return res.status(400).json({ error: "PDF has no readable text" });
     }
 
+    console.log(process.env.GEMINI_API_KEY);
     // Send to Gemini
-    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+    });
 
     const prompt = `Extract the Scheme of Work table from this text and return ONLY valid JSON in this exact format:
 
@@ -61,13 +73,19 @@ ${text}`;
     let responseText = result.response.text();
 
     // Clean markdown if present
-    responseText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    responseText = responseText
+      .replace(/```json\n?/g, "")
+      .replace(/```\n?/g, "")
+      .trim();
 
     let parsed;
     try {
       parsed = JSON.parse(responseText);
     } catch (e) {
-      return res.status(500).json({ error: "AI returned invalid JSON", raw: responseText.substring(0, 500) });
+      return res.status(500).json({
+        error: "AI returned invalid JSON",
+        raw: responseText.substring(0, 500),
+      });
     }
 
     if (!parsed.weeks || !Array.isArray(parsed.weeks)) {
@@ -75,9 +93,17 @@ ${text}`;
     }
 
     // Check if scheme already exists
-    const existing = await SchemeOfWork.findOne({ class: className, subject, term, session });
+    const existing = await SchemeOfWork.findOne({
+      class: className,
+      subject,
+      term,
+      session,
+    });
     if (existing) {
-      return res.status(400).json({ error: "Scheme already exists. Delete it first or use a different term/session." });
+      return res.status(400).json({
+        error:
+          "Scheme already exists. Delete it first or use a different term/session.",
+      });
     }
 
     // Save

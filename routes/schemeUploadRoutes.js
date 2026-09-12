@@ -23,4 +23,14 @@ router.post(
   schemeUploadController.uploadScheme,
 );
 
+router.post(
+  "/upload",
+  auth,
+  upload.single("pdf"),
+  (req, res, next) => {
+    console.log("UPLOAD ROUTE HIT");
+    next();
+  },
+  schemeUploadController.uploadScheme,
+);
 module.exports = router;
