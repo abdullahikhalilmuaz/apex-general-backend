@@ -40,15 +40,24 @@ exports.getSchemeByClassAndSubject = async (req, res) => {
 exports.createScheme = async (req, res) => {
   try {
     if (req.user.role !== "headmaster") {
-      return res.status(403).json({ error: "Only headmasters can create schemes" });
+      return res
+        .status(403)
+        .json({ error: "Only headmasters can create schemes" });
     }
 
     const { class: className, subject, term, session, weeks } = req.body;
 
-    // Check if scheme already exists
-    const existing = await SchemeOfWork.findOne({ class: className, subject, term, session });
+    const existing = await SchemeOfWork.findOne({
+      class: className,
+      subject,
+      term,
+      session,
+    });
     if (existing) {
-      return res.status(400).json({ error: "Scheme already exists for this class, subject, term, and session" });
+      return res.status(400).json({
+        error:
+          "Scheme already exists for this class, subject, term, and session",
+      });
     }
 
     const scheme = new SchemeOfWork({
@@ -71,13 +80,15 @@ exports.createScheme = async (req, res) => {
 exports.updateScheme = async (req, res) => {
   try {
     if (req.user.role !== "headmaster") {
-      return res.status(403).json({ error: "Only headmasters can update schemes" });
+      return res
+        .status(403)
+        .json({ error: "Only headmasters can update schemes" });
     }
 
     const scheme = await SchemeOfWork.findByIdAndUpdate(
       req.params.id,
       { ...req.body, updatedAt: new Date() },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!scheme) {
@@ -94,7 +105,9 @@ exports.updateScheme = async (req, res) => {
 exports.deleteScheme = async (req, res) => {
   try {
     if (req.user.role !== "headmaster") {
-      return res.status(403).json({ error: "Only headmasters can delete schemes" });
+      return res
+        .status(403)
+        .json({ error: "Only headmasters can delete schemes" });
     }
 
     const scheme = await SchemeOfWork.findByIdAndDelete(req.params.id);
@@ -108,7 +121,7 @@ exports.deleteScheme = async (req, res) => {
   }
 };
 
-// Teacher marks week as completed
+// Teacher marks week as completed (toggles ALL entries with that week number)
 exports.markWeekCompleted = async (req, res) => {
   try {
     if (req.user.role !== "teacher") {
@@ -122,19 +135,27 @@ exports.markWeekCompleted = async (req, res) => {
       return res.status(404).json({ error: "Scheme not found" });
     }
 
-    // Check if teacher is assigned to this class
     const teacher = await Teacher.findById(req.user.id);
     if (!teacher || teacher.classAssigned !== scheme.class) {
-      return res.status(403).json({ error: "You are not assigned to this class" });
+      return res
+        .status(403)
+        .json({ error: "You are not assigned to this class" });
     }
 
-    const week = scheme.weeks.find((w) => w.weekNumber === weekNumber);
-    if (!week) {
+    const matchingWeeks = scheme.weeks.filter(
+      (w) => w.weekNumber === weekNumber,
+    );
+    if (matchingWeeks.length === 0) {
       return res.status(404).json({ error: "Week not found" });
     }
 
-    week.completed = !week.completed;
-    week.completedDate = week.completed ? new Date() : null;
+    const newCompletedState = !matchingWeeks[0].completed;
+
+    matchingWeeks.forEach((w) => {
+      w.completed = newCompletedState;
+      w.completedDate = newCompletedState ? new Date() : null;
+    });
+
     scheme.updatedAt = new Date();
     await scheme.save();
 
@@ -144,7 +165,7 @@ exports.markWeekCompleted = async (req, res) => {
   }
 };
 
-// Teacher marks week as completed (Alternative)
+// Teacher marks week as completed (Alternative - full week array update)
 exports.updateSchemeWeeks = async (req, res) => {
   try {
     if (req.user.role !== "teacher") {
@@ -154,7 +175,7 @@ exports.updateSchemeWeeks = async (req, res) => {
     const scheme = await SchemeOfWork.findByIdAndUpdate(
       req.params.id,
       { weeks: req.body.weeks, updatedAt: new Date() },
-      { new: true }
+      { new: true },
     );
 
     if (!scheme) {
@@ -171,20 +192,29 @@ exports.updateSchemeWeeks = async (req, res) => {
 exports.getClassProgress = async (req, res) => {
   try {
     if (req.user.role !== "headmaster") {
-      return res.status(403).json({ error: "Only headmasters can view progress" });
+      return res
+        .status(403)
+        .json({ error: "Only headmasters can view progress" });
     }
 
     const { class: className } = req.params;
     const schemes = await SchemeOfWork.find({ class: className });
 
     const progress = schemes.map((scheme) => {
-      const totalWeeks = scheme.weeks.length;
-      const completedWeeks = scheme.weeks.filter((w) => w.completed).length;
+      // Unique week numbers
+      const uniqueWeeks = [...new Set(scheme.weeks.map((w) => w.weekNumber))];
+      const totalWeeks = uniqueWeeks.length;
+
+      const completedWeeks = uniqueWeeks.filter((wn) =>
+        scheme.weeks.some((w) => w.weekNumber === wn && w.completed),
+      ).length;
+
       return {
         subject: scheme.subject,
         totalWeeks,
         completedWeeks,
-        progress: totalWeeks > 0 ? Math.round((completedWeeks / totalWeeks) * 100) : 0,
+        progress:
+          totalWeeks > 0 ? Math.round((completedWeeks / totalWeeks) * 100) : 0,
       };
     });
 

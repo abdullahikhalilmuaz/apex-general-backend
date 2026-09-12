@@ -2,8 +2,11 @@ const mongoose = require("mongoose");
 
 const WeekSchema = new mongoose.Schema({
   weekNumber: { type: Number, required: true },
+  theme: { type: String, required: true },
   topic: { type: String, required: true },
-  subtopics: [String],
+  teacherActivities: String,
+  pupilActivities: String,
+  learningResources: String,
   completed: { type: Boolean, default: false },
   completedDate: Date,
 });
