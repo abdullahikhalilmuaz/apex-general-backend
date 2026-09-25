@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
+const Announcement = require("./models/Announcement");
 
 dotenv.config();
 
@@ -81,28 +82,31 @@ app.get("/api/dashboard/stats", auth, async (req, res) => {
     status: "present",
     date: { $gte: new Date().setHours(0, 0, 0, 0) },
   });
+
+  // Count announcements (requires Announcement model)
+  let announcements = 0;
+  try {
+    const Announcement = require("./models/Announcement");
+    announcements = await Announcement.countDocuments();
+  } catch {
+    announcements = 0;
+  }
+
   res.json({
     totalPupils,
     totalTeachers,
     presentToday,
     absentToday: 0,
     classesCompleted: 0,
-    announcements: 0,
+    announcements,
   });
 });
 
 app.get("/api/dashboard/teacher-stats", auth, async (req, res) => {
   const teacher = await Teacher.findById(req.user.id);
-  const pupils = await Pupil.countDocuments({
-    class: teacher?.classAssigned,
-    isActive: true,
-  });
+  // Pupils/present/absent now come from app-server; return class + messages here
   res.json({
-    pupils,
-    present: 0,
-    absent: 0,
-    lessons: 0,
-    schemes: 0,
+    classAssigned: teacher?.classAssigned || "",
     messages: 0,
   });
 });
